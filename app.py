@@ -209,7 +209,113 @@ def main():
             )
             gb.configure_grid_options(
                 domLayout='normal',
-                suppressRowDeselectionimport streamlit as st
+                suppressRowDeselection=True,
+                suppressCellSelection=False,
+                enableRangeSelection=True
+            )
+            
+            grid_options = gb.build()
+            
+            # AgGrid 표시
+            st.markdown("### 📝 데이터 편집")
+            if st.session_state.is_collaborative:
+                st.markdown("🤝 **공동 편집 모드**: 변경사항이 자동으로 다른 사용자들과 동기화됩니다.")
+            else:
+                st.markdown("셀을 클릭하여 직접 편집할 수 있습니다.")
+            
+            grid_response = AgGrid(
+                current_data,
+                gridOptions=grid_options,
+                data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+                update_mode=GridUpdateMode.MODEL_CHANGED,
+                fit_columns_on_grid_load=True,
+                height=400,
+                reload_data=False,
+                key=f"grid_{st.session_state.current_sheet}_{st.session_state.current_version}"
+            )
+            
+            # 변경사항 자동 저장
+            if grid_response['data'] is not None:
+                updated_df = pd.DataFrame(grid_response['data'])
+                
+                # 데이터가 실제로 변경되었는지 확인
+                if not updated_df.equals(current_data):
+                    DataManager.update_sheet_data(st.session_state.current_sheet, updated_df)
+                    
+                    if st.session_state.is_collaborative:
+                        st.success("✅ 변경사항이 저장되고 동기화되었습니다!")
+                        time.sleep(1)  # 잠시 대기 후 새로고침
+                        st.rerun()
+            
+            # 실시간 활동 표시
+            if st.session_state.is_collaborative:
+                with st.expander("👥 실시간 공동 편집 상태"):
+                    active_users = DataManager.get_active_users()
+                    if active_users:
+                        st.markdown("**현재 활성 사용자:**")
+                        for user in active_users:
+                            user_display = user["user_id"][:8]
+                            if user["user_id"] == st.session_state.user_id:
+                                st.markdown(f"- 🟢 {user_display} (나)")
+                            else:
+                                st.markdown(f"- 🔵 {user_display}")
+                        
+                        st.markdown(f"**마지막 업데이트:** {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                    else:
+                        st.info("현재 활성 사용자가 없습니다.")
+            
+            # 데이터 미리보기
+            with st.expander("🔍 데이터 미리보기 (처음 10행)"):
+                st.dataframe(current_data.head(10))
+        
+        else:
+            st.warning("⚠️ 선택된 시트의 데이터가 없습니다.")
+    
+    else:
+        # 파일이 업로드되지 않은 경우
+        st.info("👈 사이드바에서 엑셀 파일을 업로드하거나 공동 편집 프로젝트에 참여해주세요.")
+        
+        # 사용법 안내
+        st.markdown("""
+        ### 📖 사용법
+        
+        #### 🔹 개별 편집
+        1. **파일 업로드**: 사이드바에서 엑셀 파일(.xlsx, .xls)을 업로드하세요
+        2. **시트 선택**: 여러 시트가 있는 경우 원하는 시트를 선택하세요
+        3. **데이터 편집**: 표의 셀을 클릭하여 직접 편집할 수 있습니다
+        4. **다운로드**: 편집이 완료되면 사이드바에서 다운로드하세요
+        
+        #### 🔹 공동 편집
+        1. **프로젝트 생성**: 파일 업로드 후 "공동 편집 프로젝트 생성" 버튼 클릭
+        2. **프로젝트 공유**: 생성된 프로젝트 ID를 다른 사용자들과 공유
+        3. **프로젝트 참여**: 프로젝트 ID를 입력하여 공동 편집에 참여
+        4. **실시간 편집**: 모든 변경사항이 실시간으로 다른 사용자들과 동기화됩니다
+        
+        ### ✨ 주요 기능
+        - 📁 엑셀 파일 업로드 및 다운로드
+        - 📊 웹에서 실시간 데이터 편집
+        - 📋 다중 시트 지원
+        - 🤝 **실시간 공동 편집**
+        - 👥 **활성 사용자 표시**
+        - 🔄 **자동 데이터 동기화**
+        - 🔍 데이터 미리보기
+        """)
+        
+        # 공동 편집 데모 안내
+        st.markdown("""
+        ---
+        ### 🎯 공동 편집 테스트 방법
+        
+        1. **브라우저 창을 2개 열어보세요** (또는 시크릿 모드 사용)
+        2. **첫 번째 창에서** 엑셀 파일을 업로드하고 공동 편집 프로젝트를 생성하세요
+        3. **두 번째 창에서** 생성된 프로젝트 ID로 참여하세요
+        4. **양쪽 창에서** 데이터를 편집해보세요 - 실시간으로 동기화됩니다!
+        
+        💡 **팁**: 30초마다 자동 동기화되며, 수동으로 "새로고침" 버튼을 클릭할 수도 있습니다.
+        """)
+
+if __name__ == "__main__":
+    main()import streamlit as st
 import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder, DataReturnMode, GridUpdateMode
 from utils.excel_handler import ExcelHandler
