@@ -1,6 +1,6 @@
 streamlit==1.29.0
 pandas==2.1.4
 openpyxl==3.1.2
-streamlit-aggrid==0.3.4
+streamlit-aggrid==0.3.3
 xlsxwriter==3.1.9
 filelock==3.13.1
